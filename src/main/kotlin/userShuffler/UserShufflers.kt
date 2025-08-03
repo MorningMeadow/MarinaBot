@@ -8,7 +8,7 @@ object UserShufflers {
     const val USER_LIMIT = 16
     private var shufflers: MutableMap<Pair<Snowflake, Snowflake>, UserShuffler> = mutableMapOf()
 
-     fun getUsers(key: Pair<Snowflake, Snowflake>): List<org.morningmeadow.userShuffler.User>? {
+     fun getUsers(key: Pair<Snowflake, Snowflake>): List<User>? {
         val shuffler = shufflers[key]
         if (shuffler == null) return null
         return shuffler.users.toList()
