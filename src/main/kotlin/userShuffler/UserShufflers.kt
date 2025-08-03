@@ -2,24 +2,17 @@ package org.morningmeadow.userShuffler
 
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.entity.User
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
+import dev.kord.core.entity.effectiveName
 import org.morningmeadow.Bot
 
 object UserShufflers {
     const val USER_LIMIT = 10
     private var shufflers: MutableMap<Pair<Snowflake, Snowflake>, UserShuffler> = mutableMapOf()
 
-     fun getUsers(key: Pair<Snowflake, Snowflake>): Flow<User>? {
+     fun getUsers(key: Pair<Snowflake, Snowflake>): List<org.morningmeadow.userShuffler.User>? {
         val shuffler = shufflers[key]
         if (shuffler == null) return null
-        return flow {
-            shuffler.users.forEach {
-                userId ->
-                val user = Bot.kord.getUser(userId)
-                if (user != null) emit(user)
-            }
-        }
+        return shuffler.users.toList()
     }
 
     fun shuffleUsers(key: Pair<Snowflake, Snowflake>) {
@@ -40,12 +33,13 @@ object UserShufflers {
         shufflers.remove(key)
     }
 
-    fun addUser(key: Pair<Snowflake, Snowflake>, userId: Snowflake) {
-        shufflers[key]!!.users.add(userId)
+    suspend fun addUser(key: Pair<Snowflake, Snowflake>, userId: Snowflake) {
+        val user = Bot.kord.getUser(userId)!!
+        shufflers[key]!!.users.add(User(userId, user.effectiveName))
     }
 
     fun removeUser(key: Pair<Snowflake, Snowflake>, userId: Snowflake) {
-        shufflers[key]!!.users.remove(userId)
+        shufflers[key]!!.users.removeAll { user -> user.id == userId }
     }
 
     fun shufflerSize(key: Pair<Snowflake, Snowflake>): Int {

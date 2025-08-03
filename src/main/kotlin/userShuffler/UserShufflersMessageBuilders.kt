@@ -1,35 +1,29 @@
 package org.morningmeadow.userShuffler
 
 import dev.kord.common.entity.ButtonStyle
-import dev.kord.core.entity.User
-import dev.kord.core.entity.effectiveName
 import dev.kord.rest.builder.component.option
 import dev.kord.rest.builder.message.MessageBuilder
 import dev.kord.rest.builder.message.actionRow
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.toList
-import org.morningmeadow.userShuffler.UserShufflers.USER_LIMIT
 import kotlin.random.Random
 
 object UserShufflersMessageBuilders {
     private const val SIMULATED_DICE_SIZE: Int = 100
 
-    suspend fun home(builder: MessageBuilder, userFlow: Flow<User>, simulateDice: Boolean = false) {
-        val users = userFlow.toList()
+    fun home(builder: MessageBuilder, users: List<User>, simulateDice: Boolean = false) {
         val userOL = generateUserOrderedList(users, simulateDice)
         var content = userOL
         if (users.size == 1) {
             content += "\nYou need at least two users to shuffle the list."
         }
-        if (users.size >= USER_LIMIT) {
-            content += "\nYou've reached the maximum user limit of $USER_LIMIT."
+        if (users.size >= UserShufflers.USER_LIMIT) {
+            content += "\nYou've reached the maximum user limit of ${UserShufflers.USER_LIMIT}."
         }
 
         builder.content = content
         builder.actionRow {
             interactionButton(ButtonStyle.Primary, "add_user") {
                 label = "Add user(s)"
-                disabled = users.size >= USER_LIMIT
+                disabled = users.size >= UserShufflers.USER_LIMIT
             }
             interactionButton(ButtonStyle.Primary, "remove_user") {
                 label = "Remove user(s)"
@@ -45,14 +39,13 @@ object UserShufflersMessageBuilders {
         }
     }
 
-    suspend fun addUser(builder: MessageBuilder, userFlow: Flow<User>) {
-        val users = userFlow.toList()
+    fun addUser(builder: MessageBuilder, users: List<User>) {
         val userOL = generateUserOrderedList(users, false)
 
         builder.content = "$userOL\nPlease select one or more users."
         builder.actionRow {
             userSelect("user_select") {
-                allowedValues = 1..USER_LIMIT
+                allowedValues = 1..UserShufflers.USER_LIMIT
             }
         }
         builder.actionRow {
@@ -62,15 +55,14 @@ object UserShufflersMessageBuilders {
         }
     }
 
-    suspend fun removeUser(builder: MessageBuilder, userFlow: Flow<User>) {
-        val users = userFlow.toList()
+    fun removeUser(builder: MessageBuilder, users: List<User>) {
         val userOL = generateUserOrderedList(users, false)
 
         builder.content = "$userOL\nPlease select one or more users."
         builder.actionRow {
             stringSelect("user_select") {
                 allowedValues = 1..users.size
-                users.forEach { user -> option(user.effectiveName, user.id.toString()) }
+                users.forEach { user -> option(user.name, user.id.toString()) }
             }
         }
         builder.actionRow {
@@ -98,7 +90,7 @@ object UserShufflersMessageBuilders {
         repeat(users.size) { i ->
             val user = users[i]
             text += "${i+1}. "
-            text += user.effectiveName
+            text += user.name
             if (simulateDice) {
                 text += " (rolled ${dices[i]}/$SIMULATED_DICE_SIZE)"
             }
