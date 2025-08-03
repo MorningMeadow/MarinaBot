@@ -1,7 +1,6 @@
 package org.morningmeadow.userShuffler
 
 import dev.kord.common.entity.Snowflake
-import dev.kord.core.entity.User
 import dev.kord.core.entity.effectiveName
 import org.morningmeadow.Bot
 
