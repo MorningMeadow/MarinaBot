@@ -6,7 +6,7 @@ import dev.kord.core.entity.effectiveName
 import org.morningmeadow.Bot
 
 object UserShufflers {
-    const val USER_LIMIT = 10
+    const val USER_LIMIT = 16
     private var shufflers: MutableMap<Pair<Snowflake, Snowflake>, UserShuffler> = mutableMapOf()
 
      fun getUsers(key: Pair<Snowflake, Snowflake>): List<org.morningmeadow.userShuffler.User>? {
