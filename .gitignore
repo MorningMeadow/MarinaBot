@@ -46,3 +46,4 @@ bin/
 
 ### Configs ###
 src/main/resources/config.yaml
+/.idea/discord.xml
