@@ -50,7 +50,7 @@ object MusicPlaybackChatCommands {
 
         val lastChannelId = Snowflake(link.lastChannelId!!)
         link.destroy()
-        response.respond { Builders.joinSuccess(this, lastChannelId) }
+        response.respond { Builders.leaveSuccess(this, lastChannelId) }
     }
 
     /**
