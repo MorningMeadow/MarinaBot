@@ -1,8 +1,10 @@
 package org.morningmeadow.musicPlayback
 
 import dev.arbjerg.lavalink.protocol.v4.LoadResult
+import dev.kord.common.entity.Snowflake
 import dev.kord.core.behavior.channel.asChannelOfOrNull
 import dev.kord.core.behavior.interaction.response.respond
+import dev.kord.core.entity.VoiceState
 import dev.kord.core.entity.channel.GuildMessageChannel
 import dev.kord.core.entity.interaction.ChatInputCommandInteraction
 import dev.schlaubi.lavakord.audio.Link
@@ -49,36 +51,28 @@ object MusicPlaybackChatCommands {
         response.respond { content = "Left <#$lastChannelId> ヾ(\\*'▽'\\*)" }
     }
 
-    suspend fun play(interaction: ChatInputCommandInteraction) {
-        val response = interaction.deferPublicResponse()
+    suspend fun playErrorChecking(interaction: ChatInputCommandInteraction): Pair<Link, Snowflake?> {
         val channel = interaction.channel.asChannelOfOrNull<GuildMessageChannel>()
-        if (channel == null) {
-            response.respond {
-                content = "An error has happened (ಥ﹏ಥ)\n```This command must be used in a guild text channel.```"
-            }
-            return
-        }
+        if (channel == null)
+            throw RuntimeException("The user must be in the same voice channel as the bot.")
 
         val link = Bot.lavalink.getLink(channel.guildId.value)
         val userVoiceState = interaction.user.asMember(channel.guildId).getVoiceState()
-        var isJoiningUserVC = false
 
         if (link.lastChannelId == null) {
-            if (userVoiceState.channelId == null) {
-                response.respond {
-                    content = "An error has happened (ಥ﹏ಥ)\n```The bot or the user must be in the a voice channel.```"
-                }
-                return
-            }
-            isJoiningUserVC = true
+            if (userVoiceState.channelId == null)
+                throw RuntimeException("The bot or the user must be in the a voice channel.")
+            return Pair(link, userVoiceState.channelId)
         } else {
-            if(link.lastChannelId != userVoiceState.channelId?.value) {
-                response.respond {
-                    content = "An error has happened (ಥ﹏ಥ)\n```The user must be in the same voice channel as the bot.```"
-                }
-                return
-            }
+            if(link.lastChannelId != userVoiceState.channelId?.value)
+                throw RuntimeException("The user must be in the same voice channel as the bot.")
+            return Pair(link, null)
         }
+    }
+
+    suspend fun play(interaction: ChatInputCommandInteraction) {
+        val response = interaction.deferPublicResponse()
+        val (link, channelToJoinId) = playErrorChecking(interaction)
 
         val query = interaction.command.options["query"]?.value.toString()
         val lavalinkQuery = if (query.startsWith("http://") || query.startsWith("https://")) {
@@ -90,28 +84,28 @@ object MusicPlaybackChatCommands {
         when (val item = link.loadItem(lavalinkQuery)) {
             is LoadResult.TrackLoaded -> {
                 link.player.playTrack(track = item.data)
-                if (isJoiningUserVC)
-                    link.connect(userVoiceState.channelId!!.value.toString())
+                if (channelToJoinId != null)
+                    link.connect(channelToJoinId.toString())
 
                 response.respond {
-                    content = "Playing `${item.data.info.title}` in <#${link.lastChannelId!!}> ♪♬～('▽^人)"
+                    content = "Playing `${item.data.info.title}` in <#${channelToJoinId ?: link.lastChannelId!!}> ♪♬～('▽^人)"
                 }
             }
             is LoadResult.PlaylistLoaded -> {
                 val track = item.data.tracks.first()
                 link.player.playTrack(track = track)
+                if (channelToJoinId != null)
+                    link.connect(channelToJoinId.toString())
 
-                if (isJoiningUserVC)
-                    link.connect(userVoiceState.channelId!!.value.toString())
-                response.respond { content = "Playing `${track.info.title}` in <#${link.lastChannelId!!}> ♪♬～('▽^人)" }
+                response.respond { content = "Playing `${track.info.title}` in <#${channelToJoinId ?: link.lastChannelId!!}> ♪♬～('▽^人)" }
             }
             is LoadResult.SearchResult -> {
                 val track = item.data.tracks.first()
                 link.player.playTrack(track = track)
+                if (channelToJoinId != null)
+                    link.connect(channelToJoinId.toString())
 
-                if (isJoiningUserVC)
-                    link.connect(userVoiceState.channelId!!.value.toString())
-                response.respond { content = "Playing `${track.info.title}` in <#${link.lastChannelId!!}> ♪♬～('▽^人)" }
+                response.respond { content = "Playing `${track.info.title}` in <#${channelToJoinId ?: link.lastChannelId!!}> ♪♬～('▽^人)" }
             }
             is LoadResult.NoMatches -> {
                 response.respond { content = "No tracks found called `$query` (-_-;)・・・" }
@@ -132,7 +126,6 @@ object MusicPlaybackChatCommands {
         }
 
         link.player.pause(!link.player.paused)
-
         if (link.player.paused) {
             response.respond { content = "The audio playback was successfully paused |･ω･)" }
         } else {
