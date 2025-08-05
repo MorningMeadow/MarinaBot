@@ -4,7 +4,6 @@ import dev.arbjerg.lavalink.protocol.v4.LoadResult
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.behavior.channel.asChannelOfOrNull
 import dev.kord.core.behavior.interaction.response.respond
-import dev.kord.core.entity.VoiceState
 import dev.kord.core.entity.channel.GuildMessageChannel
 import dev.kord.core.entity.interaction.ChatInputCommandInteraction
 import dev.schlaubi.lavakord.audio.Link
@@ -51,6 +50,9 @@ object MusicPlaybackChatCommands {
         response.respond { content = "Left <#$lastChannelId> ヾ(\\*'▽'\\*)" }
     }
 
+    /**
+     * @return returns a lavalink Link and if the bot isn't in any voice channel, returns the id of the voice channel the user is in.
+     */
     suspend fun playErrorChecking(interaction: ChatInputCommandInteraction): Pair<Link, Snowflake?> {
         val channel = interaction.channel.asChannelOfOrNull<GuildMessageChannel>()
         if (channel == null)
