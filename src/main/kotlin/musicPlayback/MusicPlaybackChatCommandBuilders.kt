@@ -32,4 +32,16 @@ object MusicPlaybackChatCommandBuilders {
         if (errorMessage != null)
             builder.content += "\n```$errorMessage```"
     }
+
+    fun pauseSuccess(builder: MessageBuilder, paused: Boolean) {
+        builder.content = if (paused) {
+            "The audio playback was successfully paused |･ω･)"
+        } else {
+            "The audio playback was successfully resumed ♬ (๑˃ᴗ˂)ﻭ♪"
+        }
+    }
+
+    fun stopSuccess(builder: MessageBuilder, track: Track) {
+        builder.content = "Stopped playing `${track.info.title}` [(－－)]..zzZ"
+    }
 }

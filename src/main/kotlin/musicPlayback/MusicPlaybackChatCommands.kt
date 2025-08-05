@@ -138,11 +138,7 @@ object MusicPlaybackChatCommands {
         }
 
         link.player.pause(!link.player.paused)
-        if (link.player.paused) {
-            response.respond { content = "The audio playback was successfully paused |･ω･)" }
-        } else {
-            response.respond { content = "The audio playback was successfully resumed ♬ (๑˃ᴗ˂)ﻭ♪" }
-        }
+        response.respond { Builders.pauseSuccess(this, link.player.paused) }
     }
 
     suspend fun stop(interaction: ChatInputCommandInteraction) {
@@ -150,10 +146,11 @@ object MusicPlaybackChatCommands {
         try {
             val link = getLinkAndCheckForAudioCommands(interaction)
             val track = link.player.playingTrack
-            if (track == null) throw RuntimeException("No track is playing.")
+            if (track == null)
+                throw RuntimeException("No track is playing.")
 
             link.player.stopTrack()
-            response.respond { content = "Stopped playing `${track.info.title}` [(－－)]..zzZ" }
+            response.respond { Builders.stopSuccess(this, track) }
         } catch (error: RuntimeException) {
             response.respond { Builders.error(this, error.message) }
             return
