@@ -1,13 +1,16 @@
 package org.morningmeadow.userShuffler
 
+import dev.kord.common.Color
 import dev.kord.common.entity.ButtonStyle
 import dev.kord.rest.builder.component.option
 import dev.kord.rest.builder.message.MessageBuilder
 import dev.kord.rest.builder.message.actionRow
+import dev.kord.rest.builder.message.embed
 import kotlin.random.Random
 
 object UserShufflersMessageBuilders {
     private const val SIMULATED_DICE_SIZE: Int = 100
+    private val EMBED_COLOR = Color(0xebcccc)
 
     fun home(builder: MessageBuilder, users: List<User>, simulateDice: Boolean = false) {
         val userOL = generateUserOrderedList(users, simulateDice)
@@ -19,7 +22,12 @@ object UserShufflersMessageBuilders {
             content += "\nYou've reached the maximum user limit of ${UserShufflers.USER_LIMIT}."
         }
 
-        builder.content = content
+        builder.embeds = mutableListOf()
+        builder.embed {
+            color = EMBED_COLOR
+            title = "User Shuffler 3000"
+            description = content
+        }
         builder.actionRow {
             interactionButton(ButtonStyle.Primary, "add_user") {
                 label = "Add user(s)"
@@ -42,7 +50,12 @@ object UserShufflersMessageBuilders {
     fun addUser(builder: MessageBuilder, users: List<User>) {
         val userOL = generateUserOrderedList(users, false)
 
-        builder.content = "$userOL\nPlease select one or more users."
+        builder.embeds = mutableListOf()
+        builder.embed {
+            color = EMBED_COLOR
+            title = "User Shuffler 3000"
+            description = "$userOL\nPlease select one or more users."
+        }
         builder.actionRow {
             userSelect("user_select") {
                 allowedValues = 1..UserShufflers.USER_LIMIT
@@ -58,7 +71,11 @@ object UserShufflersMessageBuilders {
     fun removeUser(builder: MessageBuilder, users: List<User>) {
         val userOL = generateUserOrderedList(users, false)
 
-        builder.content = "$userOL\nPlease select one or more users."
+        builder.embed {
+            color = EMBED_COLOR
+            title = "User Shuffler 3000"
+            description = "$userOL\nPlease select one or more users."
+        }
         builder.actionRow {
             stringSelect("user_select") {
                 allowedValues = 1..users.size
@@ -90,7 +107,7 @@ object UserShufflersMessageBuilders {
         repeat(users.size) { i ->
             val user = users[i]
             text += "${i+1}. "
-            text += user.name
+            text += "**__${user.name}__**"
             if (simulateDice) {
                 text += " (rolled ${dices[i]}/$SIMULATED_DICE_SIZE)"
             }

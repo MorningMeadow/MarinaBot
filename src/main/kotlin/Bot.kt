@@ -12,6 +12,8 @@ import dev.kord.core.event.interaction.ChatInputCommandInteractionCreateEvent
 import dev.kord.core.event.interaction.ComponentInteractionCreateEvent
 import dev.kord.core.on
 import dev.kord.rest.builder.interaction.ChatInputCreateBuilder
+import dev.schlaubi.lavakord.kord.lavakord
+import dev.schlaubi.lavakord.LavaKord
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -40,12 +42,19 @@ object Bot {
         .loadConfigOrThrow<Config>()
 
     lateinit var kord: Kord
+    lateinit var lavalink: LavaKord
 
     var chatInputCommands: MutableMap<Snowflake, BotChatInputCommand> = mutableMapOf()
     var expectedComponentInteractions: MutableMap<Pair<Snowflake, Snowflake>, ExpectedInteraction> = mutableMapOf()
 
     suspend fun ready() {
         kord = Kord(config.token)
+        lavalink = kord.lavakord {
+            plugins {
+                //install(LavaSrc)
+            }
+        }
+        lavalink.addNode(config.lavalink.url, config.lavalink.password)
 
         kord.on<ChatInputCommandInteractionCreateEvent> { coroutineScope {
             val botCommand = chatInputCommands[interaction.invokedCommandId]
@@ -86,7 +95,7 @@ object Bot {
         }
     }
 
-    suspend fun registerChatCommand(botCommand: BotChatInputCommand, builder: ChatInputCreateBuilder.() -> Unit = {}) {
+    suspend fun registerGlobalChatCommand(botCommand: BotChatInputCommand, builder: ChatInputCreateBuilder.() -> Unit = {}) {
         val command = if (config.isDebug) {
             kord.createGuildChatInputCommand(
                 Snowflake(config.debugServerId),
