@@ -1,14 +1,17 @@
 package org.morningmeadow.musicPlayback
 
 import dev.arbjerg.lavalink.protocol.v4.LoadResult
+import dev.arbjerg.lavalink.protocol.v4.Track
 import dev.kord.common.entity.Snowflake
 import dev.kord.core.behavior.channel.asChannelOfOrNull
+import dev.kord.core.behavior.interaction.response.DeferredPublicMessageInteractionResponseBehavior
 import dev.kord.core.behavior.interaction.response.respond
 import dev.kord.core.entity.channel.GuildMessageChannel
 import dev.kord.core.entity.interaction.ChatInputCommandInteraction
 import dev.schlaubi.lavakord.audio.Link
 import dev.schlaubi.lavakord.rest.loadItem
 import org.morningmeadow.Bot
+import org.morningmeadow.musicPlayback.MusicPlaybackChatCommandBuilders as Builders
 
 object MusicPlaybackChatCommands {
     suspend fun join(interaction: ChatInputCommandInteraction) {
@@ -16,7 +19,7 @@ object MusicPlaybackChatCommands {
         val channel = interaction.channel.asChannelOfOrNull<GuildMessageChannel>()
         if (channel == null) {
             response.respond {
-                content = "An error has happened (ಥ﹏ಥ)\n```This command must be used in a guild text channel.```"
+                Builders.error(this, "This command must be used in a guild text channel.")
             }
             return
         }
@@ -27,27 +30,27 @@ object MusicPlaybackChatCommands {
 
         if (voiceChannelId == null) {
             response.respond {
-                content = "An error has happened (ಥ﹏ಥ)\n```User must be in a voice channel.```"
+                Builders.error(this, "User must be in a voice channel.")
             }
             return
         }
-        link.connect(voiceChannelId.value.toString())
 
-        response.respond { content = "Joined <#$voiceChannelId> (°▽°)/" }
+        link.connect(voiceChannelId.value.toString())
+        response.respond { Builders.joinSuccess(this, voiceChannelId) }
     }
 
     suspend fun leave(interaction: ChatInputCommandInteraction) {
         val response = interaction.deferPublicResponse()
         val link = try {
             getLinkAndCheckForAudioCommands(interaction)
-        } catch (e: RuntimeException) {
-            response.respond { content = "An error has happened (ಥ﹏ಥ)\n```${e.message}```" }
+        } catch (error: RuntimeException) {
+            response.respond { Builders.error(this, error.message) }
             return
         }
 
-        val lastChannelId = link.lastChannelId!!
+        val lastChannelId = Snowflake(link.lastChannelId!!)
         link.destroy()
-        response.respond { content = "Left <#$lastChannelId> ヾ(\\*'▽'\\*)" }
+        response.respond { Builders.joinSuccess(this, lastChannelId) }
     }
 
     /**
@@ -74,47 +77,54 @@ object MusicPlaybackChatCommands {
 
     suspend fun play(interaction: ChatInputCommandInteraction) {
         val response = interaction.deferPublicResponse()
-        val (link, channelToJoinId) = playErrorChecking(interaction)
-
-        val query = interaction.command.options["query"]?.value.toString()
-        val lavalinkQuery = if (query.startsWith("http://") || query.startsWith("https://")) {
-            query
-        } else {
-            "ytsearch:$query"
+        val (link, channelToJoinId) = try {
+            playErrorChecking(interaction)
+        } catch(error: RuntimeException) {
+            response.respond { Builders.error(this, error.message) }
+            return
         }
 
-        when (val item = link.loadItem(lavalinkQuery)) {
+        val query = getLavalinkQuery(interaction.command.options["query"]?.value.toString())
+        when (val item = link.loadItem(query)) {
             is LoadResult.TrackLoaded -> {
-                link.player.playTrack(track = item.data)
-                if (channelToJoinId != null)
-                    link.connect(channelToJoinId.toString())
-
-                response.respond {
-                    content = "Playing `${item.data.info.title}` in <#${channelToJoinId ?: link.lastChannelId!!}> ♪♬～('▽^人)"
-                }
+                playSingleTrack(link, item.data, channelToJoinId, response)
             }
             is LoadResult.PlaylistLoaded -> {
                 val track = item.data.tracks.first()
-                link.player.playTrack(track = track)
-                if (channelToJoinId != null)
-                    link.connect(channelToJoinId.toString())
-
-                response.respond { content = "Playing `${track.info.title}` in <#${channelToJoinId ?: link.lastChannelId!!}> ♪♬～('▽^人)" }
+                playSingleTrack(link, track, channelToJoinId, response)
             }
             is LoadResult.SearchResult -> {
                 val track = item.data.tracks.first()
-                link.player.playTrack(track = track)
-                if (channelToJoinId != null)
-                    link.connect(channelToJoinId.toString())
-
-                response.respond { content = "Playing `${track.info.title}` in <#${channelToJoinId ?: link.lastChannelId!!}> ♪♬～('▽^人)" }
+                playSingleTrack(link, track, channelToJoinId, response)
             }
             is LoadResult.NoMatches -> {
-                response.respond { content = "No tracks found called `$query` (-_-;)・・・" }
+                response.respond { Builders.playNoMatches(this, query) }
             }
             is LoadResult.LoadFailed -> {
-                response.respond { content = "Failed to load track (ಥ﹏ಥ)\n```${item.data.message}```" }
+                response.respond { Builders.playLoadFailed(this, item.data.message) }
             }
+        }
+    }
+
+    private fun getLavalinkQuery(query: String): String {
+        if (query.startsWith("http://") || query.startsWith("https://")) {
+            return query
+        } else {
+            return "ytsearch:$query"
+        }
+    }
+
+    private suspend fun playSingleTrack(link: Link, track: Track, channelToJoinId: Snowflake?, response: DeferredPublicMessageInteractionResponseBehavior) {
+        link.player.playTrack(track = track)
+        if (channelToJoinId != null)
+            link.connect(channelToJoinId.toString())
+
+        response.respond {
+            Builders.playTrackSuccess(
+                this,
+                track,
+                channelToJoinId ?: Snowflake(link.lastChannelId!!)
+            )
         }
     }
 
@@ -122,8 +132,8 @@ object MusicPlaybackChatCommands {
         val response = interaction.deferPublicResponse()
         val link = try {
             getLinkAndCheckForAudioCommands(interaction)
-        } catch (e: RuntimeException) {
-            response.respond { content = "An error has happened (ಥ﹏ಥ)\n```${e.message}```" }
+        } catch (error: RuntimeException) {
+            response.respond { Builders.error(this, error.message) }
             return
         }
 
@@ -144,8 +154,8 @@ object MusicPlaybackChatCommands {
 
             link.player.stopTrack()
             response.respond { content = "Stopped playing `${track.info.title}` [(－－)]..zzZ" }
-        } catch (e: RuntimeException) {
-            response.respond { content = "An error has happened (ಥ﹏ಥ)\n```${e.message}```" }
+        } catch (error: RuntimeException) {
+            response.respond { Builders.error(this, error.message) }
             return
         }
     }
